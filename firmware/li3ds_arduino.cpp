@@ -24,6 +24,10 @@
 #include "li3ds_leds.h"
 #include "li3ds_pps.h"
 
+// Ajout d'un message issu de la centrale INS
+// On va utiliser l'Arduino pour réaliser un pont
+// entre la SBG-Ellipse-N et le laser VLP16
+#include <ros_arduino/SbgLogGpsPos.h>
 
 inline void activateTrig();
 inline void desactivateTrig();

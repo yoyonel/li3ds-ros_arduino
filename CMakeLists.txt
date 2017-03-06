@@ -5,9 +5,25 @@ project(ros_arduino)
 find_package(catkin REQUIRED COMPONENTS
   rosserial_arduino
   rosserial_client
+  # pour les messages de la centrale INS
+  message_generation
+  std_msgs
 )
 
-catkin_package()
+#######
+# pour les messages de la centrale INS
+#######
+add_message_files(
+  DIRECTORY msg
+  FILES
+  SbgLogGpsPos.msg
+)
+generate_messages(DEPENDENCIES std_msgs)
+
+catkin_package(
+  CATKIN_DEPENDS message_runtime std_msgs
+)
+#######
 
 rosserial_generate_ros_lib(
   PACKAGE rosserial_arduino
