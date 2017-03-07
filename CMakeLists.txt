@@ -21,9 +21,18 @@ add_message_files(
 generate_messages(DEPENDENCIES std_msgs)
 
 catkin_package(
-  CATKIN_DEPENDS message_runtime std_msgs
+    INCLUDE_DIRS
+    LIBRARIES
+    CATKIN_DEPENDS message_runtime std_msgs
 )
 #######
+
+# ###########
+# ## Build ##
+# ###########
+# include_directories(
+#   ${catkin_INCLUDE_DIRS}
+# )
 
 rosserial_generate_ros_lib(
   PACKAGE rosserial_arduino

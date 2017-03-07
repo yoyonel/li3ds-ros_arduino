@@ -60,10 +60,10 @@ ros::NodeHandle_<ArduinoHardware, ROS_MAX_SUBSCRIBERS,  ROS_MAX_PUBLISHERS, ROS_
 //ros::Publisher chatter("arduino_trig", &msg_arduino_trig);
 
 std_msgs::Int64 msg_arduino_trig;
-ros::Publisher chatter("arduino_trig", &msg_arduino_trig);
+ros::Publisher pub_arduino_trig("arduino_trig", &msg_arduino_trig);
 
 std_msgs::Header msg_arduino_trig_timestamp;
-ros::Publisher chatter_2("arduino_trig_timestamp", &msg_arduino_trig_timestamp);
+ros::Publisher pub_arduino_trig_timestamp("arduino_trig_timestamp", &msg_arduino_trig_timestamp);
 
 
 /**
@@ -77,8 +77,8 @@ void setup() {
     nh.getHardware()->setBaud(BAUDS);
     nh.initNode();
 
-    nh.advertise(chatter);
-    nh.advertise(chatter_2);
+    nh.advertise(pub_arduino_trig);
+    nh.advertise(pub_arduino_trig_timestamp);
     
     // Temporisation au depart
     delay(3000);
@@ -187,13 +187,13 @@ inline void receiveTrig()
 {
     // url: https://www.arduino.cc/en/Reference/Micros
     msg_arduino_trig.data = micros();  // get Arduino clock
-    chatter.publish( &msg_arduino_trig );  // send ROS message with this clock
+    pub_arduino_trig.publish( &msg_arduino_trig );  // send ROS message with this clock
 
     //
     msg_arduino_trig_timestamp.seq = id_trig;
     msg_arduino_trig_timestamp.stamp = nh.now();
     msg_arduino_trig_timestamp.frame_id = gprmc;
-    chatter_2.publish( &msg_arduino_trig_timestamp );
+    pub_arduino_trig_timestamp.publish( &msg_arduino_trig_timestamp );
 
     //
     nh.spinOnce();
