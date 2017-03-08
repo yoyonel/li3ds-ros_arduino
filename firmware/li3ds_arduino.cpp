@@ -40,9 +40,9 @@ const byte ledPin = 13; // for led pin
 // variables will change:
 volatile int buttonState = 0;         // variable for reading the pushbutton status
 
-#define ROS_MAX_SUBSCRIBERS 0
+#define ROS_MAX_SUBSCRIBERS 1
 #define ROS_MAX_PUBLISHERS  2
-#define ROS_INPUT_SIZE      0
+#define ROS_INPUT_SIZE      80
 #define ROS_OUTPUT_SIZE     150
 
 // url: http://answers.ros.org/question/28890/using-rosserial-for-a-atmega168arduino-based-motorcontroller/
@@ -66,6 +66,23 @@ std_msgs::Header msg_arduino_trig_timestamp;
 ros::Publisher pub_arduino_trig_timestamp("arduino_trig_timestamp", &msg_arduino_trig_timestamp);
 
 
+//--------------------------
+// Subscriber: ''
+//--------------------------
+//
+//--------------------------
+/**
+ * @brief sub_sbglog_callback
+ * @param msg
+ */
+inline void cb_sbglog_gpspos(const ros_arduino::SbgLogGpsPos& msg);
+ros::Subscriber<ros_arduino::SbgLogGpsPos> sub_sbglog_gpspos("/INS/SbgLogGpsPos", &cb_sbglog_gpspos);
+
+inline void cb_sbglog_gpspos(const ros_arduino::SbgLogGpsPos& msg) {
+}
+
+//--------------------------
+
 /**
  * @brief setup
  */
@@ -79,6 +96,8 @@ void setup() {
 
     nh.advertise(pub_arduino_trig);
     nh.advertise(pub_arduino_trig_timestamp);
+
+    nh.subscribe(sub_sbglog_gpspos);
     
     // Temporisation au depart
     delay(3000);
