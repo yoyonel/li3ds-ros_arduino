@@ -69,8 +69,8 @@ void time_loop(PP_TEMPLATE_INST_NODEHANDLE(ros::NodeHandle_) &nh) {
         // sinon on risque un "Lost device synchronisation ..."
         // car ROS peut considérer trop long l'appel entre deux nh.spinOnce()
         // avec notre temporisition (tous les 1hz)
-        nh.spinOnce();
-        delay(ROS_DELAY);
+        // nh.spinOnce();
+        // delay(ROS_DELAY);
         //----------------------
     }
     old_time = millis();

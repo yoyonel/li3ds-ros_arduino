@@ -16,7 +16,7 @@ find_package(catkin REQUIRED COMPONENTS
 add_message_files(
   DIRECTORY msg
   FILES
-  SbgLogGpsPos.msg
+  gps.msg
 )
 generate_messages(DEPENDENCIES std_msgs)
 
@@ -30,9 +30,9 @@ catkin_package(
 # ###########
 # ## Build ##
 # ###########
-# include_directories(
-#   ${catkin_INCLUDE_DIRS}
-# )
+include_directories(
+  ${catkin_INCLUDE_DIRS}
+)
 
 rosserial_generate_ros_lib(
   PACKAGE rosserial_arduino
