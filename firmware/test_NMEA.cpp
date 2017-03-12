@@ -8,7 +8,8 @@
 // url: https://github.com/Robot-Will/Stino/issues/1
 #include <Arduino.h>
 //
-#include <ros_arduino/gps.h>
+//#include <ros_arduino/gps.h>
+#include <sbg_driver/gps.h>
 
 #define BAUD_RATE          (57600)
 #define PPS_PIN				10
@@ -53,11 +54,11 @@ ros::NodeHandle_<ArduinoHardware, ROS_MAX_SUBSCRIBERS,  ROS_MAX_PUBLISHERS, ROS_
 //--------------------------
 // Subscriber
 //--------------------------
-inline void cb_gps(const ros_arduino::gps& msg);
+inline void cb_gps(const sbg_driver::gps& msg);
 
-ros::Subscriber<ros_arduino::gps> sub_gps("/Arduino/gps", &cb_gps);
+ros::Subscriber<sbg_driver::gps> sub_gps("/Arduino/gps", &cb_gps);
 
-inline void cb_gps(const ros_arduino::gps& msg) {
+inline void cb_gps(const sbg_driver::gps& msg) {
 	//
 	t2 = msg.t2_t3_t4[0];
 	t3 = msg.t2_t3_t4[1];
