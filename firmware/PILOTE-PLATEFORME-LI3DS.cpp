@@ -35,8 +35,8 @@
 
 
 // definitions cam
-#define TIME_ACQUISITION_VAR      "TIME_ACQUISITION"   // Temps acquisition photo.
-#define CAM_WRITE_DELAY      1                         // delay apres ecriture sur pin de camlight
+#define TIME_ACQUISITION_VAR      "TIME_ACQUISITION"  // Temps acquisition photo.
+#define CAM_WRITE_DELAY           1                   // delay apres ecriture sur pin de camlight
 
 #ifdef USED_BUZZER
     
@@ -61,8 +61,6 @@ unsigned int time_acquisition_delay=15; // Time acquisition of a photo. This val
 unsigned int time_between_pics=900;    // Time between two pics in ms.
 unsigned int delay_correction=time_acquisition_delay+FLASH_DELAY+STAB_FLASH_DELAY+CAM_WRITE_DELAY;  // correction des temps pour obtenir un intervalle de temps entre photos correct
 unsigned int time_between_pics_revised=time_between_pics-delay_correction ;   // temps corrigé
-
-
 
 // states
 boolean start_state ;

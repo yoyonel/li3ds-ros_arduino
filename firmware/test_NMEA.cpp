@@ -8,8 +8,18 @@
 // url: https://github.com/Robot-Will/Stino/issues/1
 #include <Arduino.h>
 //
-//#include <ros_arduino/gps.h>
-#include <sbg_driver/gps.h>
+#include <ros_arduino/commands.h>
+// #include <sbg_driver/gps.h>
+// #define NS_FOR_MSG	sbg_driver
+// #define NAME_FOR_MSG	gps
+#define NS_FOR_MSG		ros_arduino
+#define NAME_FOR_MSG	commands
+#define ARDUINO_SUB_MSG	NS_FOR_MSG::NAME_FOR_MSG
+#define SUB_TOPIC_NAME	"/Arduino/commands"
+
+
+#define __DEBUG__
+#define __LED_FLASH__
 
 //
 #define BAUD_RATE          (57600)
@@ -45,7 +55,6 @@ const byte ppsPin = PPS_PIN;
 unsigned int baud_rate = BAUD_RATE;
 
 char gprmc[96];
-uint8_t gprmc_pos[50];
 char ros_log[50];
 
 // String str_gprmc;
@@ -57,14 +66,14 @@ volatile uint8_t t1 = 0;
 unsigned long old_time;
 
 // Cam & pics
-int num_pics;                           		// number of pics.
-unsigned long 	prevShot_ms;              		// prev time pics in ms.
-unsigned long 	currentShot_ms ;          		// current time pics in ms.
-unsigned long 	beginWork_ms ;            		// debut chantier en ms
-unsigned int 	time_acquisition_delay = 15; 	// Time acquisition of a photo. This value is embedded on SD card
+unsigned int 	num_pics;                       	// number of pics.
+unsigned long 	prevShot_ms;              			// prev time pics in ms.
+unsigned long 	currentShot_ms ;          			// current time pics in ms.
+unsigned long 	beginWork_ms ;            			// debut chantier en ms
+const unsigned int 	time_acquisition_delay = 15; 	// Time acquisition of a photo. This value is embedded on SD card
 
-unsigned int time_between_pics = 900;    // Time between two pics in ms.
-unsigned int delay_correction = time_acquisition_delay + FLASH_DELAY+STAB_FLASH_DELAY + CAM_WRITE_DELAY;  // correction des temps pour obtenir un intervalle de temps entre photos correct
+const unsigned int time_between_pics = 900;    // Time between two pics in ms.
+const unsigned int delay_correction = time_acquisition_delay + FLASH_DELAY + STAB_FLASH_DELAY + CAM_WRITE_DELAY;  // correction des temps pour obtenir un intervalle de temps entre photos correct
 unsigned int time_between_pics_revised = time_between_pics - delay_correction ;   // temps corrigé
 
 // // states
@@ -98,51 +107,59 @@ inline void configure_ros();
 #define ROS_OUTPUT_SIZE     150
 ros::NodeHandle_<ArduinoHardware, ROS_MAX_SUBSCRIBERS,  ROS_MAX_PUBLISHERS, ROS_INPUT_SIZE, ROS_OUTPUT_SIZE> nh;
 
+#define ros_loginfo(...)			\
+	sprintf(ros_log, __VA_ARGS__);	\
+	nh.loginfo(ros_log);			\
+	nh.spinOnce()
+
 //--------------------------
 // Subscriber
 //--------------------------
-inline void cb_gps(const sbg_driver::gps& msg);
+inline void cb_for_sub(const ARDUINO_SUB_MSG& msg);
 
-ros::Subscriber<sbg_driver::gps> sub_gps("/Arduino/gps", &cb_gps);
+ros::Subscriber<ARDUINO_SUB_MSG> sub_gps(SUB_TOPIC_NAME, &cb_for_sub);
 
-inline void cb_gps(const sbg_driver::gps& msg) {
+volatile bool bFirst = true;
+
+inline void cb_for_sub(const ARDUINO_SUB_MSG& msg) {
 	// ------------------------------
 	// Récupération des informations depuis le message ROS
 	// ROS -> ARDUINO
 	// ------------------------------
 	// Timer GPS
-	t2 = msg.t2_t3_t4[0];
-	t3 = msg.t2_t3_t4[1];
-	t4 = msg.t2_t3_t4[2];
-	//
-	// memcpy(gprmc_pos, msg.gprmc_pos, 50);
+	if(msg.update_clock) {
+		t2 = msg.t2_t3_t4[0];
+		t3 = msg.t2_t3_t4[1];
+		t4 = msg.t2_t3_t4[2];
+	}
+	
+	#ifdef __DEBUG__
+	const bool old_start_state = start_state;
+	const bool old_flash_state = flash_state;
+	const bool old_pause_state = pause_state;
+	#endif
 
-	if(flash_state != msg.state_flash) {
+	if( flash_state != msg.state_flash ) {
+		// update state
+		flash_state = msg.state_flash;
 		toggleFLASH();
 	}
-	flash_state = msg.state_flash;
-	
-	if(start_state != msg.state_start) {
-		toggleSTART() ;
-	}
 	start_state = msg.state_start;
-	
-	if(pause_state != msg.state_pause) {
-		if(!pause_state) { 
-	        start_state = !start_state;
-	        toggleSTART() ;
-	    }
-    }
 	pause_state = msg.state_pause;
 
-	//
-	// flash_state: %s
-	// flash_state? "True":"False"
-	sprintf(ros_log, "t2 t3 t4: %2.2u - %2.2u - %2.2u\tgprmc_pos: %s", 
-		t2, t3, t4,
-		gprmc_pos
+	#ifdef __DEBUG__
+	ros_loginfo(
+		"ARDUINO - t2 t3 t4: %2.2u - %2.2u - %2.2u",
+		t2, t3, t4
 	);
-	nh.loginfo(ros_log);	// [OK]
+
+	ros_loginfo(
+		"ARDUINO - STATES (before/after update) Flash, Start, Pause: %d/%d - %d/%d - %d/%d",
+		old_flash_state, flash_state, 
+		old_start_state, start_state, 
+		old_pause_state, pause_state
+	);
+	#endif
 }
 //--------------------------
 
@@ -168,12 +185,14 @@ void setup() {
     //
   	old_time = 0;
 
-  	//
-  	start_state = false;    // stat run, ie take pics
-  	pause_state = false;    // stat pause, false
-  	flash_state = true;		// flash activate
+	// inputString.reserve(INPUTSTRING_SIZE);
 
-  	analogWrite(FLASH_PIN, MIN_FLASHLEVEL);     //Led niveau bas
+  	//
+  	start_state = false;	// stat run, ie take pics
+  	pause_state = false;	// stat pause, false
+  	flash_state = true;	// flash activate
+
+  	toggleFLASH();
 }
 
 void loop() {	
@@ -182,8 +201,9 @@ void loop() {
 	loop_gps();
 
 	// analogWrite(BUZZER_PIN, BUZZER_ON);
+
 	if( !pause_state && start_state ) {
-		take_pic(); 
+		take_pic();
 	}
 
   	loop_clock();
@@ -221,8 +241,10 @@ inline void loop_gps() {
 	gps.print(gprmc);
 	// ------------------------------
 
-	Serial.println( String("gprmc: " + String(gprmc) + " send to gps.") );
-	nh.loginfo(gprmc);	// [OK]
+	// Serial.println( String("gprmc: " + String(gprmc) + " send to gps.") );
+	#ifdef __DEBUG__
+	ros_loginfo("GPS - gpmrc: %s", gprmc);
+	#endif
 }
 
 inline void loop_clock() {
@@ -280,10 +302,14 @@ inline unsigned char checkSum(const String& theseChars) {
 }
 
 inline void toggleFLASH() {
+#ifdef __LED_FLASH__
   analogWrite(FLASH_PIN, (flash_state==true ? MIN_FLASHLEVEL : FLASH_OFFLEVEL) );
-  // Serial.println ( (flash_state==true?  "FLASH On":"FLASH Off") ); 
+#endif
 
   time_between_pics_revised = time_between_pics - (flash_state ? time_acquisition_delay + FLASH_DELAY + STAB_FLASH_DELAY + CAM_WRITE_DELAY : time_acquisition_delay+CAM_WRITE_DELAY);
+
+  // Serial.println ( (flash_state==true?  "FLASH On":"FLASH Off") ); 
+  ros_loginfo("ARDUINO - FLASH %s", (flash_state==true?  "FLASH On":"FLASH Off"));
 
   return ;
 }
@@ -314,22 +340,20 @@ inline void toggleSTART() {
 		// nh.loginfo(ros_log);
     }
 
-    // sprintf(ros_log, "%s", (start_state ? "START On":"START Off"));
-    // nh.loginfo(ros_log);
+    #ifdef __DEBUG__
+    ros_loginfo(ros_log, "%s", (start_state ? "START On":"START Off"));
+    #endif
 
     return ;
 }
 
 inline void take_pic() { 
 	if(flash_state) {                                     
+		#ifdef __LED_FLASH__
 		analogWrite(FLASH_PIN, MAX_FLASHLEVEL);
+		#endif
 		delay(STAB_FLASH_DELAY);                           // on attend la stabilisation de l'eclairage à sa valeur max.
 	}
-
-	// #ifdef USED_BUZZER
-	// // start buzzer.
-	// analogWrite(BUZZER_PIN, BUZZER_ON);  
-	// #endif
 
 	pinMode(CAM_PIN, OUTPUT);
 	digitalWrite(CAM_PIN,LOW);
@@ -345,26 +369,20 @@ inline void take_pic() {
 	if(flash_state) {
 		delay(time_acquisition_delay + FLASH_DELAY);	// attente de : temps acquisition de la prise de photo+ delais constant de 10ms avant de 
 		                                            	// couper les LED.
-		analogWrite(FLASH_PIN, MIN_FLASHLEVEL);		//Led niveau bas
-	}     
+		#ifdef __LED_FLASH__
+		analogWrite(FLASH_PIN, MIN_FLASHLEVEL);			//Led niveau bas
+		#endif
 
-	// #ifdef DEBUG_MSG
-	// //  Serial.print("Pics number [") ;
-	// //  Serial.print(num_pics) ;
-	// //  Serial.print("-") ;
-	// //  Serial.print(lastShot_ms) ;
-	// //  Serial.println("]") ;
-	// #endif  
+		delay(STAB_FLASH_DELAY);
+	}
 
-	// #ifdef USED_BUZZER
-	// //stop buzzer
-	// anogWrite(BUZZER_PIN, BUZZER_OFF);
-	// #endif
-
-	// long delta = currentShot_ms - prevShot_ms ;
-	// outputString=String(num_pics)+"-"+String(currentShot_ms)+"-"+String(delta) ; 
-	// Serial.println(outputString) ;
-	// outputString="";
+	#ifdef __DEBUG__
+	const long delta = currentShot_ms - prevShot_ms;
+	ros_loginfo(
+		"ARDUINO - num_pics/currentShot_ms/delta: %d/%d/%d", 
+		num_pics, currentShot_ms, delta
+	);
+	#endif
 
 	prevShot_ms = currentShot_ms;
 
