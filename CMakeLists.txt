@@ -5,34 +5,34 @@ project(ros_arduino)
 find_package(catkin REQUIRED COMPONENTS
   rosserial_arduino
   rosserial_client
-  # pour les messages de la centrale INS
-  message_generation
-  rosserial_msgs
-  std_msgs
-  message_filters
+  # # pour les messages de la centrale INS
+  # message_generation
+  # rosserial_msgs
+  # std_msgs
+  # message_filters
 )
 
 #######
 # pour les messages de la centrale INS
 #######
-add_message_files(
-  DIRECTORY msg
-  FILES
-  # gps.msg
-  commands.msg
-  states.msg
-)
-# 
-generate_messages(
-        DEPENDENCIES
-        std_msgs
-)
-# 
-catkin_package(
-    INCLUDE_DIRS
-    LIBRARIES
-    CATKIN_DEPENDS message_runtime std_msgs
-)
+# add_message_files(
+#   DIRECTORY msg
+#   FILES
+#   # gps.msg
+#   commands.msg
+#   states.msg
+# )
+# # 
+# generate_messages(
+#         DEPENDENCIES
+#         std_msgs
+# )
+# # 
+# catkin_package(
+#     INCLUDE_DIRS
+#     LIBRARIES
+#     CATKIN_DEPENDS message_runtime std_msgs
+# )
 # 
 #######
 
