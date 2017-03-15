@@ -14,91 +14,17 @@
 #include <li3ds_clock.h>
 #include <li3ds_states.h>
 #include <li3ds_commands.h>
+// #include <li3ds_gps.h>
 
-SoftwareSerial gps(RX_PIN, TX_PIN, true); // RX, TX, inverse_logic
-
-const byte ppsPin = PPS_PIN;
 unsigned int baud_rate = BAUD_RATE;
 
+// -------------------------------------------------------------------------------------------
+SoftwareSerial gps(RX_PIN, TX_PIN, true); // RX, TX, inverse_logic
 char gprmc[96];
-char ros_log[50];
-// String str_gprmc;
-
 //
-inline void loop_pps();
 inline void loop_gps();
-inline void loop_clock();
-//
-// inline char checkSum(String theseChars);
 inline unsigned char checkSum(const String& theseChars);
-inline void update_clock();
-
 //
-inline void take_pic();
-//
-inline void configure_ports();
-inline void configure_ros();
-//
-
-
-
-
-inline void configure_ports() {
-	pinMode(ppsPin, OUTPUT);  		// id pin relie au "GPS" vers le VLP (simule le trig)
-	pinMode(FLASH_PIN, OUTPUT);		//
-	// pinMode(BUZZER_PIN, OUTPUT);
-}
-
-inline void configure_ros() {
-	nh.getHardware()->setBaud(baud_rate);
-    nh.initNode();
-    nh.subscribe(sub_gps);
-}
-
-void setup() {
-	gps.begin(9600);
-
-	configure_ports();
-
-	configure_ros();
-
-    //
-  	old_time = 0;
-
-	// inputString.reserve(INPUTSTRING_SIZE);
-
-  	//
-  	start_state = false;	// stat run, ie take pics
-  	pause_state = false;	// stat pause, false
-  	flash_state = true;	// flash activate
-
-  	toggleFLASH();
-}
-
-void loop() {	
-	loop_pps();
-	
-	loop_gps();
-
-	// analogWrite(BUZZER_PIN, BUZZER_ON);
-
-	if( !pause_state && start_state ) {
-		take_pic();
-	}
-
-  	loop_clock();
-
-  	// analogWrite(BUZZER_PIN, BUZZER_OFF);
-  	// Serial.println(String("1 loop executed !")) ;
-}
-
-inline void loop_pps() {
-	// PPS
-	digitalWrite(ppsPin, HIGH);
-	delay(20);
-	digitalWrite(ppsPin, LOW);
-}
-
 inline void loop_gps() {
 	// ------------------------------
 	// Construction du message NMEA
@@ -126,7 +52,42 @@ inline void loop_gps() {
 	ros_loginfo("GPS - gpmrc: %s", gprmc);
 	#endif
 }
+/**
+ * @brief checkSum
+ * @param theseChars
+ * @return
+ */
+inline unsigned char checkSum(const String& theseChars) {
+    unsigned char check = 0;
+    // iterate over the string, XOR each byte with the total sum:
+    for (int c = 0; c < theseChars.length(); c++) {
+        check = char(check ^ theseChars.charAt(c));
+    }
+    // return the result
+    return check;
+}
+// -------------------------------------------------------------------------------------------
 
+// -------------------------------------------------------------------------------------------
+const byte ppsPin = PPS_PIN;
+//
+inline void loop_pps();
+//
+inline void loop_pps() {
+	// PPS
+	digitalWrite(ppsPin, HIGH);
+	delay(20);
+	digitalWrite(ppsPin, LOW);
+}
+// -------------------------------------------------------------------------------------------
+
+char ros_log[50];
+
+
+// -------------------------------------------------------------------------------------------
+inline void loop_clock();
+inline void update_clock();
+//
 inline void loop_clock() {
 	update_clock();
 
@@ -165,22 +126,11 @@ inline void update_clock() {
     }
     if (t4 > 23) t4 = 0;
 }
+// -------------------------------------------------------------------------------------------
 
-/**
- * @brief checkSum
- * @param theseChars
- * @return
- */
-inline unsigned char checkSum(const String& theseChars) {
-    unsigned char check = 0;
-    // iterate over the string, XOR each byte with the total sum:
-    for (int c = 0; c < theseChars.length(); c++) {
-        check = char(check ^ theseChars.charAt(c));
-    }
-    // return the result
-    return check;
-}
-
+// -------------------------------------------------------------------------------------------
+inline void take_pic();
+//
 inline void take_pic() { 
 	if(flash_state) {                                     
 		#ifdef __LED_FLASH__
@@ -221,4 +171,36 @@ inline void take_pic() {
 	prevShot_ms = currentShot_ms;
 
 	return ;
+}
+// -------------------------------------------------------------------------------------------
+
+inline void configure_ports() {
+	pinMode(ppsPin, OUTPUT);  		// id pin relie au "GPS" vers le VLP (simule le trig)
+	pinMode(FLASH_PIN, OUTPUT);		//
+}
+
+void setup() {
+	gps.begin(9600);
+
+	configure_ports();
+
+	configure_ros(baud_rate);
+
+	setup_clock();
+  	//
+  	setup_states();
+
+  	toggleFLASH();
+}
+
+void loop() {	
+	loop_pps();
+	
+	loop_gps();
+
+	if( !pause_state && start_state ) {
+		take_pic();
+	}
+
+  	loop_clock();
 }

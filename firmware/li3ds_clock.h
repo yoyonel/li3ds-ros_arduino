@@ -8,4 +8,8 @@ volatile uint8_t t1 = 0;
 //
 unsigned long old_time;
 
+inline void setup_clock() {
+  	old_time = 0;
+}
+
 #endif

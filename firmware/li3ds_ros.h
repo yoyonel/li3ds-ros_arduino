@@ -31,6 +31,8 @@ extern volatile uint8_t t1;
 
 extern void toggleFLASH();
 
+inline void configure_ros(const unsigned int& baud_rate);
+
 //--------------------------
 // Subscriber
 //--------------------------
@@ -81,5 +83,11 @@ inline void cb_for_sub(const ARDUINO_SUB_MSG& msg) {
 	#endif
 }
 
+//
+inline void configure_ros(const unsigned int& baud_rate) {
+	nh.getHardware()->setBaud(baud_rate);
+    nh.initNode();
+    nh.subscribe(sub_gps);
+}
 
 #endif
