@@ -14,13 +14,16 @@
 #include <li3ds_clock.h>
 #include <li3ds_states.h>
 #include <li3ds_commands.h>
+#include <li3ds_camlight.h>
 // #include <li3ds_gps.h>
 
+char ros_log[50];
 unsigned int baud_rate = BAUD_RATE;
 
 // -------------------------------------------------------------------------------------------
 SoftwareSerial gps(RX_PIN, TX_PIN, true); // RX, TX, inverse_logic
-char gprmc[96];
+char gprmc[70];
+// String str_gprmc;
 //
 inline void loop_gps();
 inline unsigned char checkSum(const String& theseChars);
@@ -31,14 +34,17 @@ inline void loop_gps() {
 	// ------------------------------
 	// sprintf(gprmc, "GPRMC,220516,A,5133.82,N,00042.24,W,173.8,231.8,130694,004.2,W");
 	// t4 = 23;
+
 	sprintf(gprmc,
             "GPRMC,%2.2u%2.2u%2.2u,A,4901.00,N,200.00,W,0.1,180,01012016,,,S", t4, t3, t2
             );
 
 	const String str_gprmc = String(gprmc);
-	const unsigned char check_sum = checkSum(str_gprmc);
+    const unsigned char check_sum = checkSum(str_gprmc);
 	// url: http://forum.arduino.cc/index.php?topic=41826.0
 	sprintf(gprmc, "$%s*%2X\r", str_gprmc.c_str(), check_sum);
+    //
+    // sprintf(gprmc, "%s", str_gprmc.c_str());
 	// ------------------------------
 
 	// ------------------------------
@@ -49,8 +55,9 @@ inline void loop_gps() {
 
 	// Serial.println( String("gprmc: " + String(gprmc) + " send to gps.") );
 	#ifdef __DEBUG__
+    // ros_loginfo("Test Ros");
 	ros_loginfo("GPS - gpmrc: %s", gprmc);
-	#endif
+	#endif 
 }
 /**
  * @brief checkSum
@@ -80,9 +87,6 @@ inline void loop_pps() {
 	digitalWrite(ppsPin, LOW);
 }
 // -------------------------------------------------------------------------------------------
-
-char ros_log[50];
-
 
 // -------------------------------------------------------------------------------------------
 inline void loop_clock();
@@ -128,55 +132,15 @@ inline void update_clock() {
 }
 // -------------------------------------------------------------------------------------------
 
-// -------------------------------------------------------------------------------------------
-inline void take_pic();
-//
-inline void take_pic() { 
-	if(flash_state) {                                     
-		#ifdef __LED_FLASH__
-		analogWrite(FLASH_PIN, MAX_FLASHLEVEL);
-		#endif
-		delay(STAB_FLASH_DELAY);                           // on attend la stabilisation de l'eclairage à sa valeur max.
-	}
-
-	pinMode(CAM_PIN, OUTPUT);
-	digitalWrite(CAM_PIN,LOW);
-
-	delay(CAM_WRITE_DELAY);                                     //1ms
-
-	pinMode(CAM_PIN, INPUT);
-	digitalWrite(CAM_PIN,LOW);
-
-	currentShot_ms = millis();
-	num_pics++;
-
-	if(flash_state) {
-		delay(time_acquisition_delay + FLASH_DELAY);	// attente de : temps acquisition de la prise de photo+ delais constant de 10ms avant de 
-		                                            	// couper les LED.
-		#ifdef __LED_FLASH__
-		analogWrite(FLASH_PIN, MIN_FLASHLEVEL);			//Led niveau bas
-		#endif
-
-		delay(STAB_FLASH_DELAY);
-	}
-
-	#ifdef __DEBUG__
-	const long delta = currentShot_ms - prevShot_ms;
-	ros_loginfo(
-		"ARDUINO - num_pics/currentShot_ms/delta: %d/%d/%d", 
-		num_pics, currentShot_ms, delta
-	);
-	#endif
-
-	prevShot_ms = currentShot_ms;
-
-	return ;
-}
-// -------------------------------------------------------------------------------------------
-
 inline void configure_ports() {
 	pinMode(ppsPin, OUTPUT);  		// id pin relie au "GPS" vers le VLP (simule le trig)
-	pinMode(FLASH_PIN, OUTPUT);		//
+
+	pinMode(FLASH_PIN, OUTPUT);		// id pin relie aux LEDs pour le flash
+
+	pinMode(CAM_PIN, INPUT);
+  	pinMode(CAM_BOOT_HALT, INPUT);
+	
+	pinMode(RUN_LED, OUTPUT);
 }
 
 void setup() {
@@ -203,4 +167,7 @@ void loop() {
 	}
 
   	loop_clock();
+
+  	// Publish states
+  	publish_states();
 }

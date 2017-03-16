@@ -16,6 +16,7 @@ unsigned int time_between_pics_revised = time_between_pics - delay_correction ; 
 
 inline void toggleFLASH();
 inline void toggleSTART();
+inline void toggleBOOT();
 
 inline void toggleFLASH() {
 #ifdef __LED_FLASH__
@@ -61,6 +62,25 @@ inline void toggleSTART() {
     #endif
 
     return ;
+}
+
+inline void toggleBOOT() {
+	if(boot_state) {	// si boot_state on "boot" la CAM
+		pinMode(CAM_BOOT_HALT, OUTPUT);
+		digitalWrite(CAM_BOOT_HALT,LOW);
+		delay(CAM_BOOT_DELAY);	// delay de 0,1s pour declencher un boot
+		pinMode(CAM_BOOT_HALT, INPUT);
+		digitalWrite(CAM_BOOT_HALT,LOW); 
+	}
+	else {               // sinon on "halt" la CAM
+		pinMode(CAM_BOOT_HALT, OUTPUT);
+		digitalWrite(CAM_BOOT_HALT,LOW);
+		delay(CAM_HALT_DELAY);          // delay de 0,5s pour declencher un "halt", 
+		                               	// attention en dessous il ne se passe rien ou c'est compris comme un boot,
+		                               	// au dessus c'est un arret system violent (cas du plantage de l'os embarqué)
+		pinMode(CAM_BOOT_HALT, INPUT);
+		digitalWrite(CAM_BOOT_HALT,LOW); 
+	}
 }
 
 #endif

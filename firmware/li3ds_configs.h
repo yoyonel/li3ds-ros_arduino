@@ -10,8 +10,10 @@
 #define PPS_PIN				10
 #define TX_PIN				4
 #define RX_PIN				10
-#define FLASH_PIN           11     //sortie pwm eclairage
-#define CAM_PIN             9     //sortie commande photo aux cameras (toujours LOW, mais INPUT pour haute impedance et OUTPUT pour mettre a la masse)
+#define FLASH_PIN           11		// sortie pwm eclairage
+#define CAM_PIN             8		// sortie commande photo aux cameras (toujours LOW, mais INPUT pour haute impedance et OUTPUT pour mettre a la masse)
+#define CAM_BOOT_HALT       7
+#define RUN_LED             6		// run arduino
 
 #define UPDATE_RATE_PER_SECOND 1
 
@@ -30,8 +32,11 @@
 // #define BUZZER_OFF      0        	// buzzer off.
 
 // definitions cam
-#define CAM_WRITE_DELAY      1                         // delay apres ecriture sur pin de camlight
-
+#define CAM_WRITE_DELAY		1		// delay apres ecriture sur pin de camlight
+#define CAM_HALT_DELAY		500		// delay de 0,5s pour declencher un "halt", 
+									// attention en dessous il ne se passe rien ou c'est compris comme un boot,
+									// au dessus c'est un arret system violent (cas du plantage de l'os embarqué)
+#define CAM_BOOT_DELAY		100		// delay de 0,1s pour declencher un boot
 
 extern char ros_log[50];
 
