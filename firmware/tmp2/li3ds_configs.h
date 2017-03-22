@@ -5,7 +5,8 @@
 #define __LED_FLASH__
 
 //
-#define BAUD_RATE          (57600)
+#define BAUD_RATE         	(57600)
+// #define BAUD_RATE			(115200)
 //
 #define PPS_PIN				10
 #define TX_PIN				4

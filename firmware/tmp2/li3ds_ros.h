@@ -14,17 +14,22 @@
 #define ARDUINO_SUB_MSG	NS_FOR_MSG::NAME_FOR_MSG
 #define SUB_TOPIC_NAME	"/Arduino/commands"
 
-#define PUB_TOPIC_NAME	"/Arduino/states"
+#define PUB_TOPIC_NAME	"/Arduino/pub/states"
 #define ARDUINO_PUB_MSG	NS_FOR_MSG::states
 
 #define USE_CUSTOM_NODEHANDLER
 //
 #ifdef USE_CUSTOM_NODEHANDLER
 #define ROS_MAX_SUBSCRIBERS 1
-#define ROS_MAX_PUBLISHERS  1
+#define ROS_MAX_PUBLISHERS  2
 #define ROS_INPUT_SIZE      150
 #define ROS_OUTPUT_SIZE     150
-ros::NodeHandle_<ArduinoHardware, ROS_MAX_SUBSCRIBERS,  ROS_MAX_PUBLISHERS, ROS_INPUT_SIZE, ROS_OUTPUT_SIZE> nh;
+ros::NodeHandle_<	ArduinoHardware, 
+					ROS_MAX_SUBSCRIBERS,  
+					ROS_MAX_PUBLISHERS, 
+					ROS_INPUT_SIZE, 
+					ROS_OUTPUT_SIZE
+				> nh;
 #else
 ros::NodeHandle nh;
 #endif
@@ -112,17 +117,19 @@ ARDUINO_PUB_MSG msg_states;
 ros::Publisher pub_states(PUB_TOPIC_NAME, &msg_states);
 
 inline void publish_states() {
-	//
-	msg_states.t2_t3_t4[0] = t2;
-	msg_states.t2_t3_t4[1] = t3;
-	msg_states.t2_t3_t4[2] = t4;
-	//
-	msg_states.state_start = start_state;
-	msg_states.state_pause = pause_state;
-	msg_states.state_flash = flash_state;
-	msg_states.state_boot = boot_state;
-	//
-	msg_states.num_trigs_for_pics = num_pics;
+	// //
+	// msg_states.t2_t3_t4[0] = t2;
+	// msg_states.t2_t3_t4[1] = t3;
+	// msg_states.t2_t3_t4[2] = t4;
+	// //
+	// msg_states.state_start = start_state;
+	// msg_states.state_pause = pause_state;
+	// msg_states.state_flash = flash_state;
+	// //
+	// msg_states.state_boot = boot_state;
+	// //
+	// msg_states.num_trigs_for_pics = num_pics;
+	msg_states.encoded_states = 0;
 	//
 	pub_states.publish( &msg_states );
 }
@@ -132,8 +139,10 @@ inline void configure_ros(const unsigned int& baud_rate) {
 	nh.getHardware()->setBaud(baud_rate);
     nh.initNode();
 
-    nh.subscribe(sub_gps);
+    // while(!nh.connected()) nh.spinOnce();
+
     nh.advertise(pub_states);
+    nh.subscribe(sub_gps);
 }
 
 #endif

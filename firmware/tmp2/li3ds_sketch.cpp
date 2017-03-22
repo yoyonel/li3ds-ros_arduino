@@ -169,5 +169,5 @@ void loop() {
   	loop_clock();
 
   	// Publish states
-  	publish_states();
+  	// publish_states();
 }
