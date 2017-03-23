@@ -12,3 +12,7 @@ http://answers.ros.org/question/181708/rostest-minimum-working-example/?answer=1
 
 rostests
 http://wiki.ros.org/rostest
+
+Unit testing in ROS
+https://github.com/hcrlab/wiki/blob/master/software_engineering/unit_testing.md
+=> semble fonctionner ! A lire !

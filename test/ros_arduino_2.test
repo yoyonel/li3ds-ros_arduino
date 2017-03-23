@@ -1,0 +1,13 @@
+<launch>
+  	<arg name="port" default="/dev/ttyACM0" />
+	<arg name="baud" default="57600" />
+	<!-- url: http://answers.ros.org/question/55232/rosrun-rosserial_python-serial_nodepy/ -->
+	<!-- url http://wiki.ros.org/rosserial_python -->
+	<node pkg="rosserial_python" type="serial_node.py" name="serial_node" respawn="true">
+		<param name="~port" value="$(arg port)" />
+		<param name="~baud" value="$(arg baud)" />
+	</node>
+  	
+  	<test test-name="Test - UnitTest" 
+  		pkg="ros_arduino" type="test_arduino.py" name="ArduinoUnitTest" />
+</launch>

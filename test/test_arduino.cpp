@@ -4,6 +4,8 @@
 
 #include <thread>
 
+#include <arduino_msgs/states.h>
+
 using namespace std;
 // using namespace std::chrono;
 using namespace std::this_thread;

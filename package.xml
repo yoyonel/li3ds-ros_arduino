@@ -55,7 +55,7 @@
   <!-- <test_depend>rosunit</test_depend> -->
   <build_depend>roslaunch</build_depend>
   <build_depend>rostest</build_depend>
-
+  <build_depend>rospy</build_depend>
 
   <!-- The export tag contains other, unspecified, tags -->
   <export>

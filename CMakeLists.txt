@@ -74,17 +74,44 @@ if(CATKIN_ENABLE_TESTING)
     catkin REQUIRED COMPONENTS
     roscpp
   )
+  
   add_definitions(-std=c++11 -Wall -g)
+
   add_rostest_gtest(
     gtest_ros_arduino 
     test/ros_arduino.test 
-    test/ros_arduino.cpp
+    test/test_arduino.cpp
   )
   target_link_libraries(gtest_ros_arduino ${catkin_LIBRARIES})
 
-  # MESSAGE(TOTO: ${CATKIN_PACKAGE_BIN_DESTINATION})
   install(
     TARGETS gtest_ros_arduino
     RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
   )
+
+  add_rostest_gtest(
+    gtest_ros_arduino_sub
+    test/ros_arduino_sub.test
+    test/test_arduino_sub.cpp
+  )
+  target_link_libraries(gtest_ros_arduino_sub ${catkin_LIBRARIES})
+
+  install(
+    TARGETS gtest_ros_arduino_sub
+    RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+  )
+  
+  # Ne fonctionne pas ... 
+  # -> ne copie pas le programme: test/test_arduino.py
+  # pour qu'il soit accessible par la suite par rostest (et ros_arduino_2.test)
+  # find_package(catkin REQUIRED COMPONENTS
+  #   rospy
+  # )
+  # catkin_package()
+  # install(PROGRAMS 
+  #   test/test_arduino.py
+  #   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+  # )
+  
+  # MESSAGE(TOTO: ${CATKIN_PACKAGE_BIN_DESTINATION})
 endif()
