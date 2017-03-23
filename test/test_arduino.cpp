@@ -11,17 +11,17 @@ using namespace std;
 using namespace std::this_thread;
 
 TEST(ArduinoTestSuite, basicTest){
-  EXPECT_TRUE(true);
+    EXPECT_TRUE(true);
 }
 
 int main(int argc, char** argv){
-	ros::init(argc, argv, "ArduinoTestNode");
-  testing::InitGoogleTest(&argc, argv);
+    ros::init(argc, argv, "ArduinoTestNode");
+    testing::InitGoogleTest(&argc, argv);
 
-  thread t([]{while(ros::ok()) ros::spin();});
+    thread t([]{while(ros::ok()) ros::spin();});
 
-  auto res = RUN_ALL_TESTS();
+    auto res = RUN_ALL_TESTS();
 
-  ros::shutdown();
-  return res;
+    ros::shutdown();
+    return res;
 }

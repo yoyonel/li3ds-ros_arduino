@@ -315,16 +315,17 @@ void setup()
 
 void loop()
 {
+
+#ifdef WITH_GPS
+  loop_gps();
+#endif
+
 #if defined(WITH_ROSSERIAL) && defined(WITH_ROS_PUBLISHER)
   update_states_message();
   
   pub_states.publish( &states_msg );
   nh.spinOnce();
 #endif  // Fin de: WITH_ROSSERIAL && WITH_ROS_PUBLISHER
-
-#ifdef WITH_GPS
-  loop_gps();
-#endif
 
 #ifdef WITH_CLOCK
   loop_clock();
