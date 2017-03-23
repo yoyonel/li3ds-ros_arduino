@@ -28,12 +28,12 @@ find_package(catkin REQUIRED COMPONENTS
 #         std_msgs
 # )
 # # 
-# catkin_package(
-#     INCLUDE_DIRS
-#     LIBRARIES
-#     CATKIN_DEPENDS message_runtime std_msgs
-# )
-# 
+catkin_package(
+    INCLUDE_DIRS
+    LIBRARIES
+    CATKIN_DEPENDS rosserial_arduino rosserial_client
+)
+
 #######
 
 # ###########
@@ -62,3 +62,29 @@ rosserial_configure_client(
 
 rosserial_add_client_target(firmware arduino ALL)
 rosserial_add_client_target(firmware arduino-upload)
+
+# catkin_add_nosetests(test/test_arduino.py)
+
+if(CATKIN_ENABLE_TESTING)
+  # these dependencies are only needed for unit testing
+  find_package(roslaunch REQUIRED)
+  find_package(rostest REQUIRED)
+
+  find_package(
+    catkin REQUIRED COMPONENTS
+    roscpp
+  )
+  add_definitions(-std=c++11 -Wall -g)
+  add_rostest_gtest(
+    gtest_ros_arduino 
+    test/ros_arduino.test 
+    test/ros_arduino.cpp
+  )
+  target_link_libraries(gtest_ros_arduino ${catkin_LIBRARIES})
+
+  # MESSAGE(TOTO: ${CATKIN_PACKAGE_BIN_DESTINATION})
+  install(
+    TARGETS gtest_ros_arduino
+    RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+  )
+endif()
