@@ -1,0 +1,22 @@
+<launch>
+  	<arg name="port" default="/dev/ttyACM0" />
+	<arg name="baud" default="57600" />
+	<!-- url: http://answers.ros.org/question/55232/rosrun-rosserial_python-serial_nodepy/ -->
+	<!-- url http://wiki.ros.org/rosserial_python -->
+	<node pkg="rosserial_python" type="serial_node.py" name="serial_node" respawn="true">
+		<param name="~port" value="$(arg port)" />
+		<param name="~baud" value="$(arg baud)" />
+	</node>
+  	
+  	<test test-name="GTest - Unit Tests" 
+  		pkg="ros_arduino" type="gtest_ros_arduino" name="ArduinoGTests" />
+  	
+  	<test test-name="ros_arduino_test"
+        pkg="rostest" type="hztest" name="hztest_ros_arduino">
+    	<param name="hz" value="1.0" />
+    	<param name="hzerror" value="0.5" />
+    	<param name="test_duration" value="1.0" />    
+    	<param name="topic" value="/Arduino/pub/states" />  
+    	<param name="wait_time" value="3.0" />  
+  	</test>
+</launch>
