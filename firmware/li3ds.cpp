@@ -28,6 +28,7 @@ uint8_t encoded_states = 0;
 #define WITH_GPS_SOFTWARESERIAL
 #define WITH_GPS_NMEA_GENERATED
 #define WITH_GPS_NMEA_ADD_CHECKSUM
+#define WITH_GPS_NMEA_ENDINGS_ANTISLASHN
 //
 #define WITH_STATES
 //
@@ -211,10 +212,14 @@ void loop_gps() {
 
 #ifdef WITH_GPS_NMEA_ADD_CHECKSUM
   const String str_gprmc = String(gprmc);
-    const unsigned char check_sum = checkSum(str_gprmc);
+  const unsigned char check_sum = checkSum(str_gprmc);
   // url: http://forum.arduino.cc/index.php?topic=41826.0
+#ifdef WITH_GPS_NMEA_ENDINGS_ANTISLASHN
+  sprintf(gprmc, "$%s*%2X\n\n", str_gprmc.c_str(), check_sum);
+#else
   sprintf(gprmc, "$%s*%2X\r", str_gprmc.c_str(), check_sum);
-#endif  // Fin de: WITH_GPS_NMEA_ADD_CHECKSUM
+#endif  //  WITH_GPS_NMEA_ENDINGS_SLASHR
+#endif  // WITH_GPS_NMEA_ADD_CHECKSUM
 
 #else
   sprintf(gprmc, "GPRMC,220516,A,5133.82,N,00042.24,W,173.8,231.8,130694,004.2,W");

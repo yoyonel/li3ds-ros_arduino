@@ -6,11 +6,16 @@
 #include <arduino_msgs/states.h>
 #include <arduino_msgs/commands.h>
 
+#define __TEST_NMEA__
+//#define __TEST_NMEA_REPLACE_ENDINGS__
+
+#ifdef __TEST_NMEA__
 // libnmea (external project)
 #include <nmea.h>
 #include <nmea/gprmc.h>
 
 #include <regex>
+#endif
 
 namespace ros_arduino {
 class ROSArduinoTest : public ::testing::Test {
@@ -69,6 +74,7 @@ public:
 
         gprmc_conditionned_ = states_.gprmc;
 
+#ifdef __TEST_NMEA_REPLACE_ENDINGS__
         // urls:
         // - http://stackoverflow.com/questions/3418231/replace-part-of-a-string-with-another-string
         // - https://fr.wikipedia.org/wiki/NMEA_0183
@@ -78,6 +84,7 @@ public:
         // TODO: Essayer de remplacer directement les caractères de terminaison de la chaine NMEA sentence
         // produit par l'Arduino. Faudrait vérifier cette notion de standard sur ces fins de messages ...
         gprmc_conditionned_.replace(gprmc_conditionned_.find('\r'), sizeof("\n\n")-1, "\n\n");
+#endif
 
         MessageConsummed();
     }
@@ -141,7 +148,8 @@ TEST_F(ROSArduinoTest, TestValidateNMEA_TypeSentence) {
     std::cerr << "sentence: " << sentence << std::endl;
 #endif
 
-    ASSERT_EQ(nmea_get_type(sentence), NMEA_GPRMC) << "type sentence is not NMEA_GPRMC - sentence: " << sentence;
+    ASSERT_EQ(nmea_get_type(sentence), NMEA_GPRMC) << "type sentence is not NMEA_GPRMC"
+                                                   << "- sentence: " << sentence;
 }
 
 TEST_F(ROSArduinoTest, TestValidateNMEA_CheckSum) {
@@ -151,7 +159,8 @@ TEST_F(ROSArduinoTest, TestValidateNMEA_CheckSum) {
     std::cerr << "sentence: " << sentence << std::endl;
 #endif
 
-    ASSERT_TRUE(nmea_has_checksum(sentence, strlen(sentence))==0) << "sentence has no (valid) checksum";
+    ASSERT_EQ(nmea_has_checksum(sentence, strlen(sentence)), 0) << "sentence has no (valid) checksum"
+                                                                << "- sentence: " << sentence;
 }
 
 TEST_F(ROSArduinoTest, TestValidateNMEA_Validate) {
@@ -164,7 +173,8 @@ TEST_F(ROSArduinoTest, TestValidateNMEA_Validate) {
     ASSERT_EQ(nmea_validate(sentence,
                             strlen(sentence),
                             nmea_has_checksum(sentence, strlen(sentence))==0),
-              0) << "sentence is not valid";
+              0) << "sentence is not valid"
+                 << "- sentence: " << sentence;
 }
 
 TEST_F(ROSArduinoTest, TestValidateNMEA_Parse) {
@@ -176,10 +186,13 @@ TEST_F(ROSArduinoTest, TestValidateNMEA_Parse) {
 
     nmea_s *data = nmea_parse(sentence, strlen(sentence), nmea_has_checksum(sentence, strlen(sentence))==0);
 
-    ASSERT_TRUE(data!=NULL) << "Can't parse the sentence";
+    ASSERT_TRUE(data!=NULL) << "Can't parse the sentence"
+                            << "- sentence: " << sentence;
 
     if(data) {
-        ASSERT_EQ(data->errors, 0) << "The sentence struct contains " << data->errors << " parse errors!";
+        ASSERT_EQ(data->errors, 0) << "The sentence struct contains "
+                                   << data->errors << " parse errors!"
+                                   << "- sentence: " << sentence;
         nmea_free(data);
     }
 }
@@ -199,9 +212,12 @@ TEST_F(ROSArduinoTest, TestValidateNMEA_Parse_Time) {
         nmea_gprmc_s *pos = (nmea_gprmc_s *) data;
         const arduino_msgs::states& states = GetStates();
         // url: http://www.cplusplus.com/reference/ctime/tm/
-        EXPECT_EQ(pos->time.tm_sec, states.t2_t3_t4[0]) <<  "Time: second not synchronize !";
-        EXPECT_EQ(pos->time.tm_min, states.t2_t3_t4[1]) <<  "Time: minute not synchronize !";
-        EXPECT_EQ(pos->time.tm_hour, states.t2_t3_t4[2]) << "Time: hour not synchronize !";
+        EXPECT_EQ(pos->time.tm_sec, states.t2_t3_t4[0]) <<  "Time: second not synchronize !"
+                                                        << "- sentence: " << sentence;
+        EXPECT_EQ(pos->time.tm_min, states.t2_t3_t4[1]) <<  "Time: minute not synchronize !"
+                                                        << "- sentence: " << sentence;
+        EXPECT_EQ(pos->time.tm_hour, states.t2_t3_t4[2]) << "Time: hour not synchronize !"
+                                                         << "- sentence: " << sentence;
         //
         nmea_free(data);
     }
