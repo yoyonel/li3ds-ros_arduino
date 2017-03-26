@@ -7,6 +7,8 @@
 #include <arduino_msgs/commands.h>
 
 #define __TEST_NMEA__
+#define __TEST_COMMANDS__
+
 //#define __TEST_NMEA_REPLACE_ENDINGS__
 
 #ifdef __TEST_NMEA__
@@ -42,11 +44,37 @@ public:
         }
     }
 
-    // void Publish(int num /* TODO: add necessary fields */) {
-    //   MyInputMessage message;
-    //   // TODO: construct message.
-    //   publisher_.publish(message);
-    // }
+    arduino_msgs::commands Publish(
+            bool update_clock
+            , uint8_t t2
+            , uint8_t t3
+            , uint8_t t4
+            , bool state_start
+            , bool state_pause
+            , bool state_flash
+            , bool state_boot
+            , bool state_halt
+            ) {
+        arduino_msgs::commands message;
+
+        // TODO: construct message.
+        message.update_clock = update_clock;
+        message.t2_t3_t4[0] = t2;
+        message.t2_t3_t4[1] = t3;
+        message.t2_t3_t4[2] = t4;
+        message.state_boot = state_boot;
+        message.state_flash = state_flash;
+        message.state_halt = state_halt;
+        message.state_start = state_start;
+        message.state_pause = state_pause;
+
+        publisher_.publish(message);
+        return message;
+    }
+
+    void Publish(arduino_msgs::commands message) {
+        publisher_.publish(message);
+    }
 
     /*
    * This is necessary because it takes time for messages from the
@@ -140,7 +168,7 @@ TEST_F(ROSArduinoTest, TestSubscribeToArduinoStatesFromROSSerial) {
 }
 
 //#define DEBUG_SENTENCE_OUTPUT
-
+#ifdef __TEST_NMEA__
 TEST_F(ROSArduinoTest, TestValidateNMEA_TypeSentence) {
     WaitForMessageAlternate_ArduinoStates();
     char* sentence = const_cast<char*>(GetSentence());
@@ -166,13 +194,14 @@ TEST_F(ROSArduinoTest, TestValidateNMEA_CheckSum) {
 TEST_F(ROSArduinoTest, TestValidateNMEA_Validate) {
     WaitForMessageAlternate_ArduinoStates();
     char* sentence = const_cast<char*>(GetSentence());
+    const size_t strlen_sentence = strlen(sentence);
 #ifdef DEBUG_SENTENCE_OUTPUT
     std::cerr << "sentence: " << sentence << std::endl;
 #endif
 
     ASSERT_EQ(nmea_validate(sentence,
-                            strlen(sentence),
-                            nmea_has_checksum(sentence, strlen(sentence))==0),
+                            strlen_sentence,
+                            nmea_has_checksum(sentence, strlen_sentence)==0),
               0) << "sentence is not valid"
                  << "- sentence: " << sentence;
 }
@@ -180,11 +209,14 @@ TEST_F(ROSArduinoTest, TestValidateNMEA_Validate) {
 TEST_F(ROSArduinoTest, TestValidateNMEA_Parse) {
     WaitForMessageAlternate_ArduinoStates();
     char* sentence = const_cast<char*>(GetSentence());
+    const size_t strlen_sentence = strlen(sentence);
 #ifdef DEBUG_SENTENCE_OUTPUT
     std::cerr << "sentence: " << sentence << std::endl;
-#endif
+#endif    
 
-    nmea_s *data = nmea_parse(sentence, strlen(sentence), nmea_has_checksum(sentence, strlen(sentence))==0);
+    nmea_s *data = nmea_parse(sentence,
+                              strlen_sentence,
+                              nmea_has_checksum(sentence, strlen_sentence) == 0);
 
     ASSERT_TRUE(data!=NULL) << "Can't parse the sentence"
                             << "- sentence: " << sentence;
@@ -200,28 +232,133 @@ TEST_F(ROSArduinoTest, TestValidateNMEA_Parse) {
 TEST_F(ROSArduinoTest, TestValidateNMEA_Parse_Time) {
     WaitForMessageAlternate_ArduinoStates();
     char* sentence = const_cast<char*>(GetSentence());
+    const size_t strlen_sentence = strlen(sentence);
 #ifdef DEBUG_SENTENCE_OUTPUT
     std::cerr << "sentence: " << sentence << std::endl;
 #endif
-
     nmea_s *data = nmea_parse(sentence,
-                              strlen(sentence),
-                              nmea_has_checksum(sentence, strlen(sentence))==0);
+                              strlen_sentence,
+                              nmea_has_checksum(sentence, strlen_sentence)==0);
 
     if(data && (data->errors==0)) {
         nmea_gprmc_s *pos = (nmea_gprmc_s *) data;
         const arduino_msgs::states& states = GetStates();
         // url: http://www.cplusplus.com/reference/ctime/tm/
         EXPECT_EQ(pos->time.tm_sec, states.t2_t3_t4[0]) <<  "Time: second not synchronize !"
-                                                        << "- sentence: " << sentence;
+                                                         << "- sentence: " << sentence;
         EXPECT_EQ(pos->time.tm_min, states.t2_t3_t4[1]) <<  "Time: minute not synchronize !"
-                                                        << "- sentence: " << sentence;
+                                                         << "- sentence: " << sentence;
         EXPECT_EQ(pos->time.tm_hour, states.t2_t3_t4[2]) << "Time: hour not synchronize !"
                                                          << "- sentence: " << sentence;
         //
         nmea_free(data);
     }
 }
+#endif  // __TEST_NMEA__
+
+#ifdef __TEST_COMMANDS__
+TEST_F(ROSArduinoTest, TestValidatePublisherCommands_ALL) {
+    arduino_msgs::commands commands;
+    //
+    commands.update_clock = true;
+    commands.t2_t3_t4[0] = rand() % 60;
+    commands.t2_t3_t4[1] = rand() % 60;
+    commands.t2_t3_t4[2] = rand() % 24;
+    commands.state_flash = bool(rand() % 2);
+    commands.state_start = bool(rand() % 2);
+    commands.state_pause = bool(rand() % 2);
+    commands.state_boot = bool(rand() % 2);
+    //
+    Publish(commands);
+    //
+    WaitForMessageAlternate_ArduinoStates();
+    WaitForMessageAlternate_ArduinoStates();
+    //
+    const arduino_msgs::states& states = GetStates();
+    //
+    ASSERT_EQ(states.state_boot, commands.state_boot);
+    ASSERT_EQ(states.state_pause, commands.state_pause);
+    ASSERT_EQ(states.state_start, commands.state_start);
+    ASSERT_EQ(states.state_flash, commands.state_flash);
+    ++commands.t2_t3_t4[0]; // car double appel de WaitForMessageAlternate_ArduinoStates()
+    ASSERT_EQ(states.t2_t3_t4, commands.t2_t3_t4);
+}
+
+TEST_F(ROSArduinoTest, TestValidatePublisherCommands_Clock) {
+    arduino_msgs::commands commands;
+    //
+    commands.update_clock = true;
+    commands.t2_t3_t4[0] = rand() % 60;
+    commands.t2_t3_t4[1] = rand() % 60;
+    commands.t2_t3_t4[2] = rand() % 24;
+    //
+    Publish(commands);
+    //
+    WaitForMessageAlternate_ArduinoStates();
+    WaitForMessageAlternate_ArduinoStates();
+    //
+    const arduino_msgs::states& states = GetStates();
+    //
+    ++commands.t2_t3_t4[0]; // car double appel de WaitForMessageAlternate_ArduinoStates()
+    ASSERT_EQ(states.t2_t3_t4, commands.t2_t3_t4);
+}
+
+TEST_F(ROSArduinoTest, TestValidatePublisherCommands_Flash) {
+    arduino_msgs::commands commands;
+    commands.state_flash = bool(rand() % 2);
+    //
+    Publish(commands);
+    //
+    WaitForMessageAlternate_ArduinoStates();
+    WaitForMessageAlternate_ArduinoStates();
+    //
+    const arduino_msgs::states& states = GetStates();
+    //
+    ASSERT_EQ(states.state_flash, commands.state_flash);
+}
+
+TEST_F(ROSArduinoTest, TestValidatePublisherCommands_Start) {
+    arduino_msgs::commands commands;
+    commands.state_start = bool(rand() % 2);
+    //
+    Publish(commands);
+    //
+    WaitForMessageAlternate_ArduinoStates();
+    WaitForMessageAlternate_ArduinoStates();
+    //
+    const arduino_msgs::states& states = GetStates();
+    //
+    ASSERT_EQ(states.state_start, commands.state_start);
+}
+
+TEST_F(ROSArduinoTest, TestValidatePublisherCommands_Pause) {
+    arduino_msgs::commands commands;
+    commands.state_pause = bool(rand() % 2);
+    //
+    Publish(commands);
+    //
+    WaitForMessageAlternate_ArduinoStates();
+    WaitForMessageAlternate_ArduinoStates();
+    //
+    const arduino_msgs::states& states = GetStates();
+    //
+    ASSERT_EQ(states.state_pause, commands.state_pause);
+}
+
+TEST_F(ROSArduinoTest, TestValidatePublisherCommands_Boot) {
+    arduino_msgs::commands commands;
+    commands.state_boot = bool(rand() % 2);
+    //
+    Publish(commands);
+    //
+    WaitForMessageAlternate_ArduinoStates();
+    WaitForMessageAlternate_ArduinoStates();
+    //
+    const arduino_msgs::states& states = GetStates();
+    //
+    ASSERT_EQ(states.state_boot, commands.state_boot);
+}
+#endif  // __TEST_COMMANDS__
 
 }   // namespace ros_arduino
 

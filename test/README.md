@@ -24,3 +24,40 @@ mfreiholz/cmake-example-external-project
 https://github.com/mfreiholz/cmake-example-external-project
 => Copié sa méthode, ça a fonctionné avec libnmea (en external project) et le gtest pour ros_arduino !
 Hourrey ! :-D
+
+Use gtest in ROS program 
+http://ysonggit.github.io/coding/2014/12/19/use-gtest-in-ros-program.html
+
+simonlynen/catkin_wrap_eternal_project.cmake
+https://gist.github.com/simonlynen/8060478
+configuration d'un projet extérieur non cmake
+
+ethz-asl/orb_slam_2_catkin
+https://github.com/ethz-asl/orb_slam_2_catkin/blob/master/CMakeLists.txt
+Dépendance externe d'un projet non CMake (plus complexe)
+
+
+catkin 0.6.19 documentation
+Variables
+http://docs.ros.org/jade/api/catkin/html/user_guide/variables.html#install-destinations
+Peut être très utile à bien connaitre pour s'en sortir plus facilement avec l'écriture des CMakeLists.txt
+pour les projets ROS/Catkin
+
+
+NOTES:
+Problème avec la lib libnmea. Il y a du hardcodage de path de génération de librairies dynamiques.
+Ca pointe vers un default path système /usr/lib/libnmea/... pour installer les libs .so des parsers.
+Du coup à chaque restart du container, ces libs disparaissent !
+Faudrait patcher le CMakeLists.txt de la libnmea, c'est très cracra ce qu'ils ont fait (ils le disent dans les commentaires):
+/root/project/cmake_test_external_project/3rdparty/libnmea/CMakeLists.txt
+	foreach(PARSER_SRC ${PARSERS_SRCS})
+
+		...
+
+	    # Install to where we expect this to be on the system (hard coded).
+	    # Otherwise using absolute paths like this is not the CMake way.
+	    install(TARGETS ${PARSER_NAME} DESTINATION /usr/lib/nmea/)
+	endforeach()
+Finalement ce n'est pas simple ... les .so des parsers sont installés via la commande make install dans /usr/lib/nmea et par conséquent accessible par la lib par la suite.
+Faudrait voir la notion de RPATH sous CMake: https://cmake.org/Wiki/CMake_RPATH_handling
+C'est peut être la solution du "problème"
