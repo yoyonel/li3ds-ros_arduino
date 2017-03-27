@@ -61,3 +61,53 @@ Faudrait patcher le CMakeLists.txt de la libnmea, c'est très cracra ce qu'ils o
 Finalement ce n'est pas simple ... les .so des parsers sont installés via la commande make install dans /usr/lib/nmea et par conséquent accessible par la lib par la suite.
 Faudrait voir la notion de RPATH sous CMake: https://cmake.org/Wiki/CMake_RPATH_handling
 C'est peut être la solution du "problème"
+
+2017-03-27: Résolution (partielle) du problème ci-dessus
+package: 'ros_arduino'
+[BUILD]
+target: 'test' -> ros_arduino_sub.test
+	CMakeLists.txt
+	test_arduino_sub.cpp
+	- 3rd lib: libnmea
+		+ external_project:
+ExternalProject_Add(
+    libnmea
+
+    #    GIT_REPOSITORY "https://github.com/jacketizer/libnmea.git"
+    GIT_REPOSITORY "https://github.com/yoyonel/libnmea.git"
+
+    GIT_TAG "master"
+
+    UPDATE_COMMAND ""
+    PATCH_COMMAND ""
+
+    #SOURCE_DIR "${CMAKE_SOURCE_DIR}/3rdparty/libnmea"
+    CMAKE_ARGS  -DNMEA_BUILD_SHARED_LIB=ON
+          -DNMEA_BUILD_EXAMPLES=OFF
+          -DNMEA_UNIT_TESTS=FALSE
+          -DCMAKE_INSTALL_PREFIX=${CATKIN_DEVEL_PREFIX}
+    TEST_COMMAND ""
+  )
+	=> libnmea.so
+		|
+		--> parsers: libgpgga.so libgpgll.so libhprmc.so
+		libs dynamiques
+		-> Déploiement/installation vers ./devel/lib/nmea/:
+ExternalProject_Add_Step(
+    libnmea CopyParsersToUsrLib
+    COMMAND mkdir -p /usr/lib/nmea
+    COMMAND cp -f ${CATKIN_DEVEL_PREFIX}/${CATKIN_PACKAGE_LIB_DESTINATION}/nmea/libgprmc.so /usr/lib/nmea/.
+    COMMAND cp -f ${CATKIN_DEVEL_PREFIX}/${CATKIN_PACKAGE_LIB_DESTINATION}/nmea/libgpgll.so /usr/lib/nmea/.
+    COMMAND cp -f ${CATKIN_DEVEL_PREFIX}/${CATKIN_PACKAGE_LIB_DESTINATION}/nmea/libgpgga.so /usr/lib/nmea/.
+    DEPENDEES build
+    DEPENDEES install
+  )
+
+[RUN]
+La 3rd lib utilisation une variable d'env. 'NMEA_PARSER_PATH' pour retrouver ces libs dynamiques.
+On set cette var env dans le script d'appel du lancement du test.
+/root/project/arduino_launch_gtest_sub.sh:
+	#!/bin/bash
+	export NMEA_PARSER_PATH=/root/catkin_ws/devel/lib/nmea/
+	echo "NMEA_PARSER_PATH set to $NMEA_PARSER_PATH"
+	rostest ros_arduino ros_arduino_sub.test
