@@ -37,19 +37,26 @@ if(CATKIN_ENABLE_TESTING)
   ExternalProject_Add(
     libnmea
 
-    GIT_REPOSITORY "https://github.com/jacketizer/libnmea.git"
+    #    GIT_REPOSITORY "https://github.com/jacketizer/libnmea.git"
+    GIT_REPOSITORY "https://github.com/yoyonel/libnmea.git"
+
     GIT_TAG "master"
 
     UPDATE_COMMAND ""
     PATCH_COMMAND ""
 
-#        SOURCE_DIR "${CMAKE_SOURCE_DIR}/3rdparty/libnmea"
+    SOURCE_DIR "${CMAKE_SOURCE_DIR}/3rdparty/libnmea"
     CMAKE_ARGS  -DNMEA_BUILD_SHARED_LIB=ON
           -DNMEA_BUILD_EXAMPLES=OFF
           -DNMEA_UNIT_TESTS=FALSE
           -DCMAKE_INSTALL_PREFIX=${CATKIN_DEVEL_PREFIX}
     TEST_COMMAND ""
   )
+
+  MESSAGE("CMAKE_CURRENT_BINARY_DIR: ${CMAKE_CURRENT_BINARY_DIR}")
+#  ${CMAKE_CURRENT_BINARY_DIR}/libnmea-prefix/src/libnmea-build/parsers/
+#  SET_TARGET_PROPERTIES(libnmea PROPERTIES INSTALL_RPATH "${CMAKE_CURRENT_BINARY_DIR}/libnmea-prefix/src/libnmea-build/parsers/")
+#  SET_TARGET_PROPERTIES(libnmea PROPERTIES INSTALL_RPATH_USE_LINK_PATH TRUE)
 
   MESSAGE(path to lib: ${CATKIN_DEVEL_PREFIX}/${CATKIN_GLOBAL_LIB_DESTINATION})
   MESSAGE(CATKIN_GLOBAL_INCLUDE_DESTINATION: ${CATKIN_GLOBAL_INCLUDE_DESTINATION})
@@ -59,6 +66,15 @@ if(CATKIN_ENABLE_TESTING)
 #      COMMAND ${CMAKE_COMMAND} -E copy_directory ${GLOBAL_OUTPUT_PATH}/3rdparty/libnmea/lib ${GLOBAL_OUTPUT_PATH}
 #      DEPENDEES install
 #    )
+  ExternalProject_Add_Step(
+    libnmea CopyParsersToUsrLib
+    COMMAND mkdir -p /usr/lib/nmea
+    COMMAND cp -f ${CATKIN_DEVEL_PREFIX}/${CATKIN_PACKAGE_LIB_DESTINATION}/nmea/libgprmc.so /usr/lib/nmea/.
+    COMMAND cp -f ${CATKIN_DEVEL_PREFIX}/${CATKIN_PACKAGE_LIB_DESTINATION}/nmea/libgpgll.so /usr/lib/nmea/.
+    COMMAND cp -f ${CATKIN_DEVEL_PREFIX}/${CATKIN_PACKAGE_LIB_DESTINATION}/nmea/libgpgga.so /usr/lib/nmea/.
+    DEPENDEES build
+    DEPENDEES install
+  )
 
   #set(libnmea_INCLUDE_DIRS "${CMAKE_SOURCE_DIR}/3rdparty/libnmea/include")
 #    set(libnmea_INCLUDE_DIRS "${GLOBAL_OUTPUT_PATH}/include")
@@ -89,6 +105,17 @@ if(CATKIN_ENABLE_TESTING)
     ${catkin_LIBRARIES}
   )
   add_dependencies(gtest_ros_arduino_sub libnmea)
+
+#  SET_TARGET_PROPERTIES(
+#    gtest_ros_arduino_sub
+#    PROPERTIES INSTALL_RPATH "${CMAKE_CURRENT_BINARY_DIR}/libnmea-prefix/src/libnmea-build/parsers/"
+#  )
+#  SET_TARGET_PROPERTIES(
+#    gtest_ros_arduino_sub
+#    PROPERTIES INSTALL_RPATH_USE_LINK_PATH TRUE
+#  )
+#  set(ENV{NMEA_PARSER_PATH} "${CATKIN_DEVEL_PREFIX}/${CATKIN_PACKAGE_LIB_DESTINATION}/nmea/")
+#  MESSAGE("NMEA_PARSER_PATH: $ENV{NMEA_PARSER_PATH}")
 
   install(
     TARGETS gtest_ros_arduino_sub
