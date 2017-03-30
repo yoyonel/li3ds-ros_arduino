@@ -9,7 +9,7 @@
 #define __TEST_NMEA__
 #define __TEST_COMMANDS__
 
-//#define __TEST_NMEA_REPLACE_ENDINGS__
+#define __TEST_NMEA_REPLACE_ENDINGS__
 
 #ifdef __TEST_NMEA__
 // libnmea (external project)
