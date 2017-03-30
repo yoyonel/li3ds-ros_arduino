@@ -6,10 +6,6 @@
 
 #include <ros.h>
 
-
-uint8_t encoded_states = 0;
-
-
 #define MAX_STRING_LENGTH 70
 
 // #define WITH_ROS_LOG             // L'utilisation de logs semblent casser pas mal de choses
@@ -24,22 +20,75 @@ uint8_t encoded_states = 0;
 #define WITH_CLOCK
 // #define WITH_CLOCK_DISCRETIZED
 //
+#define WITH_PPS
+//
 #define WITH_GPS
 #define WITH_GPS_SOFTWARESERIAL
 #define WITH_GPS_NMEA_GENERATED
 #define WITH_GPS_NMEA_ADD_CHECKSUM
-#define WITH_GPS_NMEA_ENDINGS_ANTISLASHN
+// #define WITH_GPS_NMEA_ENDINGS_ANTISLASHN
 //
 #define WITH_STATES
 //
-// #define WITH_CAMLIGHT
 
 #ifdef WITH_STATES
+
+#define WITH_LED_FLASH
+#define WITH_CAMLIGHT
+#define WITH_CAMLIGHT_TAKEPIC
+
 volatile boolean state_start;
 volatile boolean state_pause;
 volatile boolean state_flash;
 volatile boolean state_boot;
+//
+volatile boolean states_updated;
+
 #endif  // Fin de: WITH_STATES
+
+#ifdef WITH_LED_FLASH
+
+#define FLASH_PIN           11    // sortie pwm eclairage
+
+// definitions flash 
+#define MAX_FLASHLEVEL        255      // Niveau eclairement max (ie flash).
+#define MIN_FLASHLEVEL        5        // Niveau eclairement eco.
+#define FLASH_OFFLEVEL        0        // default FLASH ON.
+#define STAB_FLASH_DELAY      2
+#define FLASH_DELAY           10       // Extinction du flash apres prise de photo.
+
+void toggleFLASH();
+#endif  // WITH_LED_FLASH
+
+
+#ifdef WITH_CAMLIGHT
+#define CAM_PIN             8     // sortie commande photo aux cameras (toujours LOW, mais INPUT pour haute impedance et OUTPUT pour mettre a la masse)
+//
+#define CAM_BOOT_HALT       7
+#define CAM_HALT_DELAY      500   // delay de 0,5s pour declencher un "halt", 
+                                  // attention en dessous il ne se passe rien ou c'est compris comme un boot,
+                                  // au dessus c'est un arret system violent (cas du plantage de l'os embarqué)
+#define CAM_BOOT_DELAY      100   // delay de 0,1s pour declencher un boot
+
+#ifdef WITH_CAMLIGHT_TAKEPIC
+#define CAM_WRITE_DELAY     1     // delay apres ecriture sur pin de camlight
+
+// Cam & pics
+unsigned int    num_pics;                         // number of pics.
+unsigned long   prevShot_ms;                      // prev time pics in ms.
+unsigned long   currentShot_ms ;                  // current time pics in ms.
+unsigned long   beginWork_ms ;                    // debut chantier en ms
+const unsigned int  time_acquisition_delay = 15;  // Time acquisition of a photo. This value is embedded on SD card
+
+const unsigned int time_between_pics = 900;    // Time between two pics in ms.
+const unsigned int delay_correction = time_acquisition_delay + FLASH_DELAY + STAB_FLASH_DELAY + CAM_WRITE_DELAY;  // correction des temps pour obtenir un intervalle de temps entre photos correct
+unsigned int time_between_pics_revised = time_between_pics - delay_correction ;   // temps corrigé
+
+void take_pic();
+#endif
+
+#endif  // WITH_CAMLIGHT
+
 
 #ifdef WITH_CLOCK
 #define UPDATE_RATE_PER_SECOND 1
@@ -99,14 +148,14 @@ void cb_for_sub_cmds(const arduino_msgs::commands& msg) {
   if( state_flash != msg.state_flash ) {
     // update state
     state_flash = msg.state_flash;
-    // toggleFLASH();
+    states_updated = true;
   }
   state_start = msg.state_start;
   state_pause = msg.state_pause;
   #
   if( state_boot != msg.state_boot ) {
     state_boot = msg.state_boot;
-    // toggleBOOT();
+    states_updated = true;
   }
 #endif  // Fin de: WITH_STATES
 
@@ -177,6 +226,19 @@ void loop_clock() {
 }
 #endif  // Fin de: WITH_CLOCK
 
+
+#ifdef WITH_PPS
+#define PPS_PIN       10
+
+void loop_pps();
+
+void loop_pps() {
+  // PPS
+  digitalWrite(PPS_PIN, HIGH);
+  delay(20);
+  digitalWrite(PPS_PIN, LOW);
+}
+#endif // WITH_PPS
 
 #ifdef WITH_GPS
 
@@ -251,10 +313,72 @@ unsigned char checkSum(const String& theseChars) {
 #endif
 #endif  // Fin de: WITH_GPS
 
+#ifdef WITH_LED_FLASH
+void toggleFLASH() {
+  analogWrite(FLASH_PIN, (state_flash ? MIN_FLASHLEVEL : FLASH_OFFLEVEL) );
+  // time_between_pics_revised = time_between_pics - (flash_state ? time_acquisition_delay + FLASH_DELAY + STAB_FLASH_DELAY + CAM_WRITE_DELAY : time_acquisition_delay+CAM_WRITE_DELAY);
+  // Serial.println ( (flash_state==true?  "FLASH On":"FLASH Off") ); 
+  // ros_loginfo("ARDUINO - FLASH %s", (flash_state==true?  "FLASH On":"FLASH Off"));
+}
+#endif  // WITH_LED_FLASH
+
+#ifdef WITH_CAMLIGHT
+void toggleBOOT() {
+  if(state_boot) {  // si boot_state on "boot" la CAM
+    pinMode(CAM_BOOT_HALT, OUTPUT);
+    digitalWrite(CAM_BOOT_HALT, LOW);
+    delay(CAM_BOOT_DELAY);  // delay de 0,1s pour declencher un boot
+    pinMode(CAM_BOOT_HALT, INPUT);
+    digitalWrite(CAM_BOOT_HALT, LOW); 
+  }
+  else {               // sinon on "halt" la CAM
+    pinMode(CAM_BOOT_HALT, OUTPUT);
+    digitalWrite(CAM_BOOT_HALT, LOW);
+    delay(CAM_HALT_DELAY);          // delay de 0,5s pour declencher un "halt", 
+                                    // attention en dessous il ne se passe rien ou c'est compris comme un boot,
+                                    // au dessus c'est un arret system violent (cas du plantage de l'os embarqué)
+    pinMode(CAM_BOOT_HALT, INPUT);
+    digitalWrite(CAM_BOOT_HALT, LOW); 
+  }
+}
+
+#ifdef WITH_CAMLIGHT_TAKEPIC
+void take_pic() { 
+#ifdef WITH_LED_FLASH
+  if(state_flash) {
+    analogWrite(FLASH_PIN, MAX_FLASHLEVEL);
+    delay(STAB_FLASH_DELAY);                           // on attend la stabilisation de l'eclairage à sa valeur max.
+  }
+#endif
+
+  pinMode(CAM_PIN, OUTPUT);
+  digitalWrite(CAM_PIN,LOW);
+
+  delay(CAM_WRITE_DELAY);                                     //1ms
+
+  pinMode(CAM_PIN, INPUT);
+  digitalWrite(CAM_PIN,LOW);
+
+  currentShot_ms = millis();
+  num_pics++;
+
+#ifdef WITH_LED_FLASH
+  if(state_flash) {
+    delay(time_acquisition_delay + FLASH_DELAY);  // attente de : temps acquisition de la prise de photo+ delais constant de 10ms avant de 
+                                                  // couper les LED.
+    analogWrite(FLASH_PIN, MIN_FLASHLEVEL);     //Led niveau bas    
+
+    delay(STAB_FLASH_DELAY);
+  }
+#endif  
+
+  prevShot_ms = currentShot_ms;
+}
+#endif  //  WITH_CAMLIGHT_TAKEPIC
+#endif  // WITH_CAMLIGHT
 
 #ifdef WITH_ROS_PUBLISHER
-void update_states_message() {
-  // states_msg.encoded_states = encoded_states;
+void update_states_message() {  
 #ifdef WITH_CLOCK
   states_msg.t2_t3_t4[0] = t2;
   states_msg.t2_t3_t4[1] = t3;
@@ -275,10 +399,12 @@ void update_states_message() {
   states_msg.state_pause  = false;
   states_msg.state_flash  = false;
   states_msg.state_boot   = false;
+  //
+  states_updated = true;
 #endif
 
 #ifdef WITH_CAMLIGHT
-  states_msg.num_trigs_for_pics = 0;
+  states_msg.num_trigs_for_pics = num_pics;
 #else
   states_msg.num_trigs_for_pics = 0;
 #endif
@@ -314,16 +440,62 @@ void setup()
   state_start = false;  // stat run, ie take pics
   state_pause = false;  // stat pause, false
   state_flash = true;   // flash activate
+  //
   state_boot  = false;   // etat arret
+
+  states_updated = true;
 #endif
+
+#ifdef WITH_LED_FLASH
+  pinMode(FLASH_PIN, OUTPUT);   // id pin relie aux LEDs pour le flash
+#endif  // WITH_LED_FLASH
+
+#ifdef WITH_CAMLIGHT
+  pinMode(CAM_PIN, INPUT);
+  pinMode(CAM_BOOT_HALT, INPUT);  
+  num_pics = 0;
+#endif  // WITH_CAMLIGHT
+
+#ifdef WITH_GPS
+  gps.begin(9600);
+#endif  // WITH_GPS
+
+#ifdef WITH_PPS
+  pinMode(PPS_PIN, OUTPUT);      // id pin relie au "GPS" vers le VLP (simule le trig)
+#endif  // WITH_PPS
 }
 
 void loop()
 {
 
+#ifdef WITH_PPS
+  loop_pps();
+  
 #ifdef WITH_GPS
   loop_gps();
-#endif
+#endif  //  WITH_GPS
+#endif  // WITH_PPS
+
+#ifdef WITH_STATES
+  if( states_updated ) {
+#ifdef WITH_LED_FLASH
+    toggleFLASH();
+#endif  //  WITH_LED_FLASH
+
+#ifdef WITH_CAMLIGHT
+    toggleBOOT();
+#endif  //  WITH_CAMLIGHT
+
+    //
+    states_updated = false;
+  }
+#endif  // WITH_STATES
+
+#ifdef WITH_CAMLIGHT_TAKEPIC
+    if( !state_pause && state_start ) {
+      take_pic();
+    }
+#endif  // WITH_CAMLIGHT_TAKEPIC
 
 #if defined(WITH_ROSSERIAL) && defined(WITH_ROS_PUBLISHER)
   update_states_message();
@@ -336,5 +508,5 @@ void loop()
   loop_clock();
 #else 
   delay(1000);
-#endif  
+#endif
 }
