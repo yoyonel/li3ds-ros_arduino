@@ -42,7 +42,8 @@ volatile boolean state_pause;
 volatile boolean state_flash;
 volatile boolean state_boot;
 //
-volatile boolean states_updated;
+// volatile boolean states_updated;
+volatile boolean states_flash_updated, states_boot_updated;
 
 #endif  // Fin de: WITH_STATES
 
@@ -148,14 +149,14 @@ void cb_for_sub_cmds(const arduino_msgs::commands& msg) {
   if( state_flash != msg.state_flash ) {
     // update state
     state_flash = msg.state_flash;
-    states_updated = true;
+    states_flash_updated = true;
   }
   state_start = msg.state_start;
   state_pause = msg.state_pause;
   #
   if( state_boot != msg.state_boot ) {
     state_boot = msg.state_boot;
-    states_updated = true;
+    states_boot_updated = true;
   }
 #endif  // Fin de: WITH_STATES
 
@@ -202,7 +203,7 @@ void loop_clock() {
   update_clock();
 
 #ifdef WITH_CLOCK_DISCRETIZED
-  while (millis() - old_time < 1000) {
+  while ( (millis() - old_time) < 1000 ) {
 #ifdef WITH_ROSSERIAL
     //----------------------
     // ROS
@@ -213,7 +214,13 @@ void loop_clock() {
     // car ROS peut considérer trop long l'appel entre deux nh.spinOnce()
     // avec notre temporisition (tous les 1hz)
     nh.spinOnce();
-    delay(ROS_DELAY);
+    // delay(ROS_DELAY);
+    old_time_for_ros = millis();
+    while(
+      ((millis() - old_time) < 1000) && 
+      ((millis() - old_time_for_ros) < ROS_DELAY)
+    ) {
+    }
     //----------------------
 #endif  // Fin de: WITH_ROSSERIAL
   }
@@ -400,13 +407,16 @@ void update_states_message() {
   states_msg.state_flash  = false;
   states_msg.state_boot   = false;
   //
-  states_updated = true;
+  states_flash_updated = true;
+  states_boot_updated = true;
 #endif
 
 #ifdef WITH_CAMLIGHT
   states_msg.num_trigs_for_pics = num_pics;
+  states_msg.camlight_shot_ms = currentShot_ms;
 #else
   states_msg.num_trigs_for_pics = 0;
+  states_msg.camlight_shot_ms = 0;
 #endif
 
 #ifdef WITH_GPS
@@ -443,7 +453,8 @@ void setup()
   //
   state_boot  = false;   // etat arret
 
-  states_updated = true;
+  states_flash_updated = true;
+  states_boot_updated = true;
 #endif
 
 #ifdef WITH_LED_FLASH
@@ -476,26 +487,29 @@ void loop()
 #endif  //  WITH_GPS
 #endif  // WITH_PPS
 
-#ifdef WITH_STATES
-  if( states_updated ) {
-#ifdef WITH_LED_FLASH
-    toggleFLASH();
-#endif  //  WITH_LED_FLASH
-
-#ifdef WITH_CAMLIGHT
-    toggleBOOT();
-#endif  //  WITH_CAMLIGHT
-
-    //
-    states_updated = false;
-  }
-#endif  // WITH_STATES
-
 #ifdef WITH_CAMLIGHT_TAKEPIC
     if( !state_pause && state_start ) {
       take_pic();
     }
 #endif  // WITH_CAMLIGHT_TAKEPIC
+
+#ifdef WITH_STATES
+#ifdef WITH_LED_FLASH
+  if( states_flash_updated ) {
+    toggleFLASH();
+    states_flash_updated = false;
+  }
+#endif  //  WITH_LED_FLASH
+
+#ifdef WITH_CAMLIGHT
+  if( states_boot_updated ) {
+    toggleBOOT();
+    states_boot_updated = false;
+  }
+#endif  //  WITH_CAMLIGHT
+    //
+    // states_updated = false;
+#endif  // WITH_STATES
 
 #if defined(WITH_ROSSERIAL) && defined(WITH_ROS_PUBLISHER)
   update_states_message();
