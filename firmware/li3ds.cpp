@@ -18,7 +18,7 @@
 #define WITH_ROS_SUBSCRIBER
 //
 #define WITH_CLOCK
-// #define WITH_CLOCK_DISCRETIZED
+#define WITH_CLOCK_DISCRETIZED
 //
 #define WITH_PPS
 //
@@ -76,14 +76,15 @@ void toggleFLASH();
 
 // Cam & pics
 unsigned int    num_pics;                         // number of pics.
-unsigned long   prevShot_ms;                      // prev time pics in ms.
-unsigned long   currentShot_ms ;                  // current time pics in ms.
-unsigned long   beginWork_ms ;                    // debut chantier en ms
+unsigned long   prevShot_ms = 0;                      // prev time pics in ms.
+unsigned long   currentShot_ms = 0;                  // current time pics in ms.
+// unsigned long   beginWork_ms ;                    // debut chantier en ms
 const unsigned int  time_acquisition_delay = 15;  // Time acquisition of a photo. This value is embedded on SD card
 
-const unsigned int time_between_pics = 900;    // Time between two pics in ms.
+volatile unsigned int time_between_pics = 1500;    // Time between two pics in ms.
 const unsigned int delay_correction = time_acquisition_delay + FLASH_DELAY + STAB_FLASH_DELAY + CAM_WRITE_DELAY;  // correction des temps pour obtenir un intervalle de temps entre photos correct
-unsigned int time_between_pics_revised = time_between_pics - delay_correction ;   // temps corrigé
+volatile int time_between_pics_revised = time_between_pics - delay_correction ;   // temps corrigé
+unsigned int time_between_pics_real = 0;
 
 void take_pic();
 #endif
@@ -203,6 +204,7 @@ void loop_clock() {
   update_clock();
 
 #ifdef WITH_CLOCK_DISCRETIZED
+  unsigned long old_time_for_ros;
   while ( (millis() - old_time) < 1000 ) {
 #ifdef WITH_ROSSERIAL
     //----------------------
@@ -220,6 +222,12 @@ void loop_clock() {
       ((millis() - old_time) < 1000) && 
       ((millis() - old_time_for_ros) < ROS_DELAY)
     ) {
+#ifdef WITH_CAMLIGHT_TAKEPIC
+      if (  (!state_pause && state_start) &&
+            (millis() - prevShot_ms) >= time_between_pics_revised) {
+        take_pic();
+      }
+#endif  // WITH_CAMLIGHT_TAKEPIC
     }
     //----------------------
 #endif  // Fin de: WITH_ROSSERIAL
@@ -323,7 +331,7 @@ unsigned char checkSum(const String& theseChars) {
 #ifdef WITH_LED_FLASH
 void toggleFLASH() {
   analogWrite(FLASH_PIN, (state_flash ? MIN_FLASHLEVEL : FLASH_OFFLEVEL) );
-  // time_between_pics_revised = time_between_pics - (flash_state ? time_acquisition_delay + FLASH_DELAY + STAB_FLASH_DELAY + CAM_WRITE_DELAY : time_acquisition_delay+CAM_WRITE_DELAY);
+  time_between_pics_revised = time_between_pics - (state_flash ? time_acquisition_delay + FLASH_DELAY + STAB_FLASH_DELAY + CAM_WRITE_DELAY : time_acquisition_delay+CAM_WRITE_DELAY);
   // Serial.println ( (flash_state==true?  "FLASH On":"FLASH Off") ); 
   // ros_loginfo("ARDUINO - FLASH %s", (flash_state==true?  "FLASH On":"FLASH Off"));
 }
@@ -366,8 +374,8 @@ void take_pic() {
   pinMode(CAM_PIN, INPUT);
   digitalWrite(CAM_PIN,LOW);
 
-  currentShot_ms = millis();
   num_pics++;
+  currentShot_ms = millis();
 
 #ifdef WITH_LED_FLASH
   if(state_flash) {
@@ -379,6 +387,7 @@ void take_pic() {
   }
 #endif  
 
+  time_between_pics_real = currentShot_ms - prevShot_ms;
   prevShot_ms = currentShot_ms;
 }
 #endif  //  WITH_CAMLIGHT_TAKEPIC
@@ -414,6 +423,7 @@ void update_states_message() {
 #ifdef WITH_CAMLIGHT
   states_msg.num_trigs_for_pics = num_pics;
   states_msg.camlight_shot_ms = currentShot_ms;
+  states_msg.camlight_time_between_pics = time_between_pics_real;
 #else
   states_msg.num_trigs_for_pics = 0;
   states_msg.camlight_shot_ms = 0;
@@ -487,11 +497,11 @@ void loop()
 #endif  //  WITH_GPS
 #endif  // WITH_PPS
 
-#ifdef WITH_CAMLIGHT_TAKEPIC
-    if( !state_pause && state_start ) {
-      take_pic();
-    }
-#endif  // WITH_CAMLIGHT_TAKEPIC
+// #ifdef WITH_CAMLIGHT_TAKEPIC
+//     if( !state_pause && state_start ) {
+//       take_pic();
+//     }
+// #endif  // WITH_CAMLIGHT_TAKEPIC
 
 #ifdef WITH_STATES
 #ifdef WITH_LED_FLASH
