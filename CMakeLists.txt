@@ -63,4 +63,4 @@ rosserial_configure_client(
 rosserial_add_client_target(firmware arduino ALL)
 rosserial_add_client_target(firmware arduino-upload)
 
-include(test/CMakeLists.txt)
+#include(test/CMakeLists.txt)
